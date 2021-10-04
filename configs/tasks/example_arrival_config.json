@@ -8,7 +8,7 @@
         },
         "systemParameters": {
           "dataParallelism": "1",
-          "executorCores": "750m",
+          "executorCores": "1000M",
           "executorMemory": "1Gi",
           "action": "train"
         },

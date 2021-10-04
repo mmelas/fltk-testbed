@@ -7,7 +7,7 @@ from dataclasses_json import config, dataclass_json
 
 
 @dataclass_json
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class HyperParameters:
     """
     Learning HyperParameters.
@@ -33,7 +33,7 @@ class Priority:
 
 
 @dataclass_json
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class SystemParameters:
     """
     System parameters to spawn pods with.

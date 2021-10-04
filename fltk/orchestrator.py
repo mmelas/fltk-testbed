@@ -65,6 +65,13 @@ class Orchestrator(object):
         @return: None
         @rtype: None
         """
+        
+        num_cores = [4, 2] 
+        num_nodes = [5, 2]
+        epochs = [6, 2]
+        learning_rate = [0.010, 0.005]
+        batch_size = [256, 64]
+
         self._alive = True
         start_time = time.time()
         if clear:
@@ -72,18 +79,51 @@ class Orchestrator(object):
         while self._alive and time.time() - start_time < self._config.get_duration():
             # 1. Check arrivals
             # If new arrivals, store them in arrival list
-            while not self.__arrival_generator.arrivals.empty():
-                arrival: Arrival = self.__arrival_generator.arrivals.get()
-                unique_identifier: uuid.UUID = uuid.uuid4()
-                task = ArrivalTask(priority=arrival.get_priority(),
-                                   id=unique_identifier,
-                                   network=arrival.get_network(),
-                                   dataset=arrival.get_dataset(),
-                                   sys_conf=arrival.get_system_config(),
-                                   param_conf=arrival.get_parameter_config())
+            #while not self.__arrival_generator.arrivals.empty():
+#                task = ArrivalTask(priority=arrival.get_priority(),
+#                                   id=unique_identifier,
+#                                   network=arrival.get_network(),
+#                                   dataset=arrival.get_dataset(),
+#                                   sys_conf=arrival.get_system_config(),
+#                                   param_conf=arrival.get_parameter_config())
+#                self.__logger.debug(f"Arrival of: {task}")
+#                self.pending_tasks.put(task)
+            while (self.__arrival_generator.arrivals.empty()): 
+                #do_nothing
+                time.sleep(1)
+            arrival: Arrival = self.__arrival_generator.arrivals.get()
+            unique_identifier: uuid.UUID = uuid.uuid4()
+            curr_priority = 0
+            for epoch in epochs:
+                for nodes in num_nodes:
+                    unique_identifier: uuid.UUID = uuid.uuid4()
+                    task = ArrivalTask(priority=curr_priority,
+                                       id=unique_identifier,
+                                       network=arrival.get_network(),
+                                       dataset=arrival.get_dataset(),
+                                       sys_conf=arrival.get_system_config(),
+                                       param_conf=arrival.get_parameter_config())
+                    task.param_conf.maxEpoch = epoch
+                    task.sys_conf.dataParallelism = nodes
+                    curr_priority += 1
+                    self.pending_tasks.put(task)
+                    self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, max_epochs: {task.param_conf.maxEpoch}, parallelism: {task.sys_conf.dataParallelism}")
 
-                self.__logger.debug(f"Arrival of: {task}")
-                self.pending_tasks.put(task)
+            for lr in learning_rate:
+                for bs in batch_size:
+                    unique_identifier: uuid.UUID = uuid.uuid4()
+                    task = ArrivalTask(priority=curr_priority,
+                                       id=unique_identifier,
+                                       network=arrival.get_network(),
+                                       dataset=arrival.get_dataset(),
+                                       sys_conf=arrival.get_system_config(),
+                                       param_conf=arrival.get_parameter_config())
+                    task.param_conf.batchSize = bs
+                    task.param_conf.learningRate = lr
+                    curr_priority += 1
+                    self.pending_tasks.put(task)
+                    self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, lr: {task.param_conf.learningRate}, bs: {task.param_conf.batchSize}")
+
 
             while not self.pending_tasks.empty():
                 # Do blocking request to priority queue
@@ -100,9 +140,11 @@ class Orchestrator(object):
                 # TODO: Extend this logic in your real project, this is only meant for demo purposes
                 # For now we exit the thread after scheduling a single task.
 
-                self.stop()
-                return
+                # self.stop()
+                # return
 
+            self.stop()
+            return
             self.__logger.debug("Still alive...")
             time.sleep(5)
 
