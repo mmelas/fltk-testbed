@@ -66,10 +66,10 @@ class Orchestrator(object):
         @rtype: None
         """
         
-        num_cores = [4, 2] 
-        num_nodes = [5, 2]
-        epochs = [6, 2]
-        learning_rate = [0.010, 0.005]
+        num_cores = [1, 1] 
+        num_nodes = [1, 1]
+        epochs = [2, 2]
+        learning_rate = ['0.010', '0.005']
         batch_size = [256, 64]
 
         self._alive = True
@@ -94,6 +94,7 @@ class Orchestrator(object):
             arrival: Arrival = self.__arrival_generator.arrivals.get()
             unique_identifier: uuid.UUID = uuid.uuid4()
             curr_priority = 0
+
             for epoch in epochs:
                 for nodes in num_nodes:
                     unique_identifier: uuid.UUID = uuid.uuid4()
@@ -109,20 +110,20 @@ class Orchestrator(object):
                     self.pending_tasks.put(task)
                     self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, max_epochs: {task.param_conf.maxEpoch}, parallelism: {task.sys_conf.dataParallelism}")
 
-            for lr in learning_rate:
-                for bs in batch_size:
-                    unique_identifier: uuid.UUID = uuid.uuid4()
-                    task = ArrivalTask(priority=curr_priority,
-                                       id=unique_identifier,
-                                       network=arrival.get_network(),
-                                       dataset=arrival.get_dataset(),
-                                       sys_conf=arrival.get_system_config(),
-                                       param_conf=arrival.get_parameter_config())
-                    task.param_conf.batchSize = bs
-                    task.param_conf.learningRate = lr
-                    curr_priority += 1
-                    self.pending_tasks.put(task)
-                    self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, lr: {task.param_conf.learningRate}, bs: {task.param_conf.batchSize}")
+#            for lr in learning_rate:
+#                for bs in batch_size:
+#                    unique_identifier: uuid.UUID = uuid.uuid4()
+#                    task = ArrivalTask(priority=curr_priority,
+#                                       id=unique_identifier,
+#                                       network=arrival.get_network(),
+#                                       dataset=arrival.get_dataset(),
+#                                       sys_conf=arrival.get_system_config(),
+#                                       param_conf=arrival.get_parameter_config())
+#                    task.param_conf.batchSize = bs
+#                    task.param_conf.learningRate = lr
+#                    curr_priority += 1
+#                    self.pending_tasks.put(task)
+#                    self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, lr: {task.param_conf.learningRate}, bs: {task.param_conf.batchSize}")
 
 
             while not self.pending_tasks.empty():
@@ -136,6 +137,15 @@ class Orchestrator(object):
                 self.__logger.info(f"Deploying on cluster: {curr_task.id}")
                 self.__client.create(job_to_start, namespace=self._config.cluster_config.namespace)
                 self.deployed_tasks.append(curr_task)
+
+                time.sleep(10)
+                job_name = self.__client.get(namespace='test')['items'][0]['metadata']['name']
+                self.__logger.info("Job name : " + job_name)
+                self.__client.wait_for_job(name=job_name, namespace='test')
+
+#                while self.__client.get_job_status(job_name, namespace='test') != "Succeeded": 
+                    # Do nothing
+#                    time.sleep(1)
 
                 # TODO: Extend this logic in your real project, this is only meant for demo purposes
                 # For now we exit the thread after scheduling a single task.

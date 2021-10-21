@@ -36,6 +36,7 @@ class BuildDescription:
     master_template: V1PodTemplateSpec
     worker_template: V1PodTemplateSpec
     id: UUID
+    config_str: str
     spec: V1PyTorchJobSpec
     tolerations: List[V1Toleration]
 
@@ -334,11 +335,12 @@ class DeploymentBuilder:
         job = V1PyTorchJob(
             api_version="kubeflow.org/v1",
             kind="PyTorchJob",
-            metadata=V1ObjectMeta(name=f'trainjob-{self._buildDescription.id}', namespace='test'),
+            metadata=V1ObjectMeta(name=f'trainjob-{self._buildDescription.id}', namespace='test'),#-{self._buildDescription.config_str}', namespace='test'),
             spec=self._buildDescription.spec)
         return job
 
     def create_identifier(self, task: ArrivalTask):
+        self._buildDescription.config_str = f'lr-{task.param_conf.lr}-bs-{task.param_conf.bs}-maxepoch-{task.param_conf.max_epoch}-parallelism-{task.sys_conf.data_parallelism}'
         self._buildDescription.id = task.id
 
 
