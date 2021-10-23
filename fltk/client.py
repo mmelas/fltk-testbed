@@ -9,10 +9,8 @@ import torch.distributed as dist
 from sklearn.metrics import confusion_matrix
 from torch.utils.tensorboard import SummaryWriter
 
-from fltk.nets.util.evaluation import calculate_class_precision, calculate_class_recall
-from fltk.nets.util.utils import save_model, load_model_from_file
-from fltk.schedulers import MinCapableStepLR
-from fltk.schedulers.min_lr_step import LearningScheduler
+from fltk.nets.util import calculate_class_precision, calculate_class_recall, save_model, load_model_from_file
+from fltk.schedulers import MinCapableStepLR, LearningScheduler
 from fltk.util.config.arguments import LearningParameters
 from fltk.util.config.base_config import BareConfig
 from fltk.util.results import EpochData
@@ -90,7 +88,7 @@ class Client(object):
         self._logger.info(f"Tearing down Client {self._id}")
         self.tb_writer.close()
 
-    def _init_device(self, cuda_device: torch.device = torch.device('cpu')):
+    def _init_device(self, cuda_device: torch.device = torch.device(f'cpu')):
         """
         Initialize Torch to use available devices. Either prepares CUDA device, or disables CUDA during execution to run
         with CPU only inference/training.
@@ -101,11 +99,11 @@ class Client(object):
         @rtype: None
         """
         if self.config.cuda_enabled() and torch.cuda.is_available():
-            return torch.device(cuda_device)
+            return torch.device(dist.get_rank())
         else:
             # Force usage of CPU
             torch.cuda.is_available = lambda: False
-            return torch.device("cpu")
+            return cuda_device
 
     def load_default_model(self):
         """
@@ -138,10 +136,10 @@ class Client(object):
             self.optimizer.zero_grad()
 
             # Forward through the net to train
-            outputs = self.model(inputs)
+            outputs = self.model(inputs.to(self.device))
 
             # Calculate the loss
-            loss = self.loss_function(outputs, labels)
+            loss = self.loss_function(outputs, labels.to(self.device))
 
             # Update weights, DPP will account for synchronization of the weights.
             loss.backward()
@@ -220,7 +218,6 @@ class Client(object):
         """
         max_epoch = self.learning_params.max_epoch + 1
         start_time_train = datetime.datetime.now()
-
         epoch_results = []
         for epoch in range(1, max_epoch):
             train_loss = self.train(epoch)
