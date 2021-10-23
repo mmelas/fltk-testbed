@@ -335,12 +335,13 @@ class DeploymentBuilder:
         job = V1PyTorchJob(
             api_version="kubeflow.org/v1",
             kind="PyTorchJob",
-            metadata=V1ObjectMeta(name=f'trainjob-{self._buildDescription.id}', namespace='test'),#-{self._buildDescription.config_str}', namespace='test'),
+            metadata=V1ObjectMeta(name=f'trainjob-{self._buildDescription.id}-{self._buildDescription.config_str}', namespace='test'),#-{self._buildDescription.config_str}', namespace='test'),
             spec=self._buildDescription.spec)
         return job
 
     def create_identifier(self, task: ArrivalTask):
-        self._buildDescription.config_str = f'lr-{task.param_conf.lr}-bs-{task.param_conf.bs}-maxepoch-{task.param_conf.max_epoch}-parallelism-{task.sys_conf.data_parallelism}'
+        lr = task.param_conf.lr.replace('.', '-')
+        self._buildDescription.config_str = f'lr-{lr}-bs-{task.param_conf.bs}-me-{task.param_conf.max_epoch}-p-{task.sys_conf.data_parallelism}-c-{task.sys_conf.executor_cores}'
         self._buildDescription.id = task.id
 
 

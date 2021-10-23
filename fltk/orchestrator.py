@@ -1,6 +1,7 @@
 import logging
 import time
 import uuid
+import random
 from queue import PriorityQueue
 from typing import List
 
@@ -12,6 +13,7 @@ from fltk.util.cluster.client import construct_job, ClusterManager
 from fltk.util.config.base_config import BareConfig
 from fltk.util.task.generator.arrival_generator import ArrivalGenerator, Arrival
 from fltk.util.task.task import ArrivalTask
+from fltk.util.task.config.parameter import SystemParameters, HyperParameters
 
 
 class Orchestrator(object):
@@ -66,11 +68,11 @@ class Orchestrator(object):
         @rtype: None
         """
         
-        num_cores = [1, 1] 
-        num_nodes = [1, 1]
-        epochs = [2, 2]
+        num_cores = [3, 1] 
+        num_nodes = [4, 1]
+        epochs = [6, 2]
         learning_rate = ['0.010', '0.005']
-        batch_size = [256, 64]
+        batch_size = [1024, 64]
 
         self._alive = True
         start_time = time.time()
@@ -94,36 +96,32 @@ class Orchestrator(object):
             arrival: Arrival = self.__arrival_generator.arrivals.get()
             unique_identifier: uuid.UUID = uuid.uuid4()
             curr_priority = 0
+            curr_id = random.randint(0, 500)
 
             for epoch in epochs:
                 for nodes in num_nodes:
-                    unique_identifier: uuid.UUID = uuid.uuid4()
-                    task = ArrivalTask(priority=curr_priority,
-                                       id=unique_identifier,
-                                       network=arrival.get_network(),
-                                       dataset=arrival.get_dataset(),
-                                       sys_conf=arrival.get_system_config(),
-                                       param_conf=arrival.get_parameter_config())
-                    task.param_conf.maxEpoch = epoch
-                    task.sys_conf.dataParallelism = nodes
-                    curr_priority += 1
-                    self.pending_tasks.put(task)
-                    self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, max_epochs: {task.param_conf.maxEpoch}, parallelism: {task.sys_conf.dataParallelism}")
-
-#            for lr in learning_rate:
-#                for bs in batch_size:
-#                    unique_identifier: uuid.UUID = uuid.uuid4()
-#                    task = ArrivalTask(priority=curr_priority,
-#                                       id=unique_identifier,
-#                                       network=arrival.get_network(),
-#                                       dataset=arrival.get_dataset(),
-#                                       sys_conf=arrival.get_system_config(),
-#                                       param_conf=arrival.get_parameter_config())
-#                    task.param_conf.batchSize = bs
-#                    task.param_conf.learningRate = lr
-#                    curr_priority += 1
-#                    self.pending_tasks.put(task)
-#                    self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, lr: {task.param_conf.learningRate}, bs: {task.param_conf.batchSize}")
+                    for lr in learning_rate:
+                        for bs in batch_size:
+                            for core in num_cores:
+                                ss = SystemParameters(data_parallelism=nodes,
+                                                      executor_cores=core,
+                                                      executor_memory="1Gi",
+                                                      action="train")
+                                hp = HyperParameters(bs=bs,
+                                                     max_epoch=epoch,
+                                                     lr=lr,
+                                                     lr_decay=0.0002)
+                                task = ArrivalTask(priority=curr_priority,
+                                                   id=unique_identifier,
+                                                   network=arrival.get_network(),
+                                                   dataset=arrival.get_dataset(),
+                                                   sys_conf=ss,
+                                                   param_conf=hp)
+                                curr_priority += 1
+                                task.id = curr_id
+                                curr_id += 1
+                                self.pending_tasks.put(task)
+#                                self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, max_epochs: {task.param_conf.maxEpoch}, parallelism: {task.sys_conf.dataParallelism}")
 
 
             while not self.pending_tasks.empty():
@@ -138,10 +136,13 @@ class Orchestrator(object):
                 self.__client.create(job_to_start, namespace=self._config.cluster_config.namespace)
                 self.deployed_tasks.append(curr_task)
 
-                time.sleep(10)
+                time.sleep(40)
                 job_name = self.__client.get(namespace='test')['items'][0]['metadata']['name']
                 self.__logger.info("Job name : " + job_name)
                 self.__client.wait_for_job(name=job_name, namespace='test')
+                time.sleep(30)
+                self.__clear_jobs()
+                time.sleep(5)
 
 #                while self.__client.get_job_status(job_name, namespace='test') != "Succeeded": 
                     # Do nothing
