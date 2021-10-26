@@ -98,30 +98,31 @@ class Orchestrator(object):
             curr_priority = 0
             curr_id = random.randint(0, 500)
 
-            for epoch in epochs:
-                for nodes in num_nodes:
-                    for lr in learning_rate:
-                        for bs in batch_size:
-                            for core in num_cores:
-                                ss = SystemParameters(data_parallelism=nodes,
-                                                      executor_cores=core,
-                                                      executor_memory="1Gi",
-                                                      action="train")
-                                hp = HyperParameters(bs=bs,
-                                                     max_epoch=epoch,
-                                                     lr=lr,
-                                                     lr_decay=0.0002)
-                                task = ArrivalTask(priority=curr_priority,
-                                                   id=unique_identifier,
-                                                   network=arrival.get_network(),
-                                                   dataset=arrival.get_dataset(),
-                                                   sys_conf=ss,
-                                                   param_conf=hp)
-                                curr_priority += 1
-                                task.id = curr_id
-                                curr_id += 1
-                                self.pending_tasks.put(task)
-#                                self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, max_epochs: {task.param_conf.maxEpoch}, parallelism: {task.sys_conf.dataParallelism}")
+            for i in range(0, 2):
+                for epoch in epochs:
+                    for nodes in num_nodes:
+                        for lr in learning_rate:
+                            for bs in batch_size:
+                                for core in num_cores:
+                                    ss = SystemParameters(data_parallelism=nodes,
+                                                          executor_cores=core,
+                                                          executor_memory="5Gi",
+                                                          action="train")
+                                    hp = HyperParameters(bs=bs,
+                                                         max_epoch=epoch,
+                                                         lr=lr,
+                                                         lr_decay=0.0002)
+                                    task = ArrivalTask(priority=curr_priority,
+                                                       id=unique_identifier,
+                                                       network=arrival.get_network(),
+                                                       dataset=arrival.get_dataset(),
+                                                       sys_conf=ss,
+                                                       param_conf=hp)
+                                    curr_priority += 1
+                                    task.id = curr_id
+                                    curr_id += 1
+                                    self.pending_tasks.put(task)
+    #                                self.__logger.info(f"Deploying task with : p: {task.priority}, id: {task.id}, max_epochs: {task.param_conf.maxEpoch}, parallelism: {task.sys_conf.dataParallelism}")
 
 
             while not self.pending_tasks.empty():
@@ -139,7 +140,7 @@ class Orchestrator(object):
                 time.sleep(40)
                 job_name = self.__client.get(namespace='test')['items'][0]['metadata']['name']
                 self.__logger.info("Job name : " + job_name)
-                self.__client.wait_for_job(name=job_name, namespace='test')
+                self.__client.wait_for_job(name=job_name, namespace='test', timeout_seconds=60000)
                 time.sleep(30)
                 self.__clear_jobs()
                 time.sleep(5)

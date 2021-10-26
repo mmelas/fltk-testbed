@@ -25,8 +25,8 @@ spec:
       name: federation-lab-server
       resources:
         limits:
-          cpu: {{ (.Values.orchestrator.cpu | int) }}
-          memory: {{ (.Values.orchestrator.memory | int) }}
+            cpu: {{ (.Values.orchestrator.cpu | int) }}
+            memory: {{ (.Values.orchestrator.memory | int) }}
       volumeMounts:
         - mountPath: /opt/federation-lab/output
           name: fl-server-claim
