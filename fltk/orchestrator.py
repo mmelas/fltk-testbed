@@ -98,7 +98,7 @@ class Orchestrator(object):
             curr_priority = 0
             curr_id = random.randint(0, 500)
 
-            for i in range(0, 2):
+            for i in range(0, 3):
                 for epoch in epochs:
                     for nodes in num_nodes:
                         for lr in learning_rate:
